@@ -72,7 +72,7 @@ def get_user(telegram_id: int):
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT balance, lang, ton_wallet, card_details, successful_deals, kyc, granted_by, id_admin
+        SELECT balance, lang, ton_wallet, card_details, successful_deals, kyc, granted_by, is_admin
         FROM users
         WHERE user_id = ?
     """, (telegram_id,))
@@ -92,7 +92,7 @@ def get_user(telegram_id: int):
         "successful_deals": row[4],
         "kyc": row[5],
         "granted_by": row[6],
-        "id_admin": row[7]
+        "is_admin": row[7]
     }
 
 
