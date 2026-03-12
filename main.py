@@ -81,6 +81,9 @@ def get_user(telegram_id: int):
 
     conn.close()
 
+    if row is None:
+        return {"error": "user not found"}
+
     return {
         "balance": row[0],
         "lang": row[1],
