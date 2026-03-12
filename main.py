@@ -18,26 +18,6 @@ def get_db():
     return conn
 
 
-@app.get("/balance/{telegram_id}")
-def get_balance(telegram_id: int):
-
-    db = get_db()
-
-    user = db.execute(
-        "SELECT balance FROM users WHERE user_id = ?",
-        (telegram_id,)
-    ).fetchone()
-
-    if not user:
-        db.execute(
-            "INSERT INTO users (user_id, balance) VALUES (?, ?)",
-            (telegram_id, 0)
-        )
-        db.commit()
-        return {"balance": 0}
-
-    return {"balance": user["balance"]}
-
 
 # ПОКУПКА
 @app.post("/buy")
@@ -84,6 +64,35 @@ def buy_item(data: dict):
         "success": True,
         "balance": new_balance
     }
+
+@app.get("/user/{telegram_id}")
+def get_user(telegram_id: int):
+
+    conn = sqlite3.connect("bot_data.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT balance, lang, ton_wallet, card_details, successful_deals, kyc, granted_by, id_admin
+        FROM users
+        WHERE user_id = ?
+    """, (telegram_id,))
+
+    row = cur.fetchone()
+
+    conn.close()
+
+    return {
+        "balance": row[0],
+        "lang": row[1],
+        "ton_wallet": row[2],
+        "card_details": row[3],
+        "successful_deals": row[4],
+        "kyc": row[5],
+        "granted_by": row[6],
+        "id_admin": row[7]
+    }
+
+
 
 @app.get("/items")
 def get_items():
