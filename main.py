@@ -17,6 +17,20 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+@app.get("/balance/{user_id}")
+def get_balance(telegram_id: int):
+
+    db = get_db()
+
+    user = db.execute(
+        "SELECT balance FROM users WHERE user_id = ?",
+        (telegram_id,)
+    ).fetchone()
+
+    if not user:
+        return {"balance": 0}
+
+    return {"balance": user["balance"]}
 
 @app.post("/buy")
 def buy_item(data: dict):
@@ -172,6 +186,7 @@ def update_user_field(data: dict):
     db.commit()
 
     return {"status": "ok"}
+
 
 
 # сохранить платеж
