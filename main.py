@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
+import requests
+BOT_TOKEN = "7003462537:AAH1vCC20ZbLtbvu9UiD7pQiWJHCQEmB1CY"
 
 app = FastAPI()
 
@@ -33,47 +35,61 @@ def get_balance(user_id: int):
     return {"balance": user["balance"]}
 
 @app.post("/buy")
-def buy_item(data: dict):
+async def buy_item(data: dict):
 
-    telegram_id = data["telegram_id"]
-    item_id = data["item_id"]
+    telegram_id = data.get("telegram_id")
+    item_id = data.get("item_id")
 
-    db = get_db()
+    conn = sqlite3.connect("bot_data.db")
+    cursor = conn.cursor()
 
-    item = db.execute(
-        "SELECT * FROM items WHERE id = ?",
-        (item_id,)
-    ).fetchone()
+    cursor.execute("SELECT name, price FROM items WHERE id=?", (item_id,))
+    item = cursor.fetchone()
 
     if not item:
-        return {"error": "item not found"}
+        return {"error": "Предмет не найден"}
 
-    price = item["price"]
+    name, price = item
 
-    user = db.execute(
-        "SELECT balance FROM users WHERE user_id = ?",
-        (telegram_id,)
-    ).fetchone()
+    cursor.execute("SELECT balance FROM users WHERE user_id=?", (telegram_id,))
+    user = cursor.fetchone()
 
-    if user["balance"] < price:
-        return {"error": "not enough balance"}
+    if not user:
+        return {"error": "Пользователь не найден"}
 
-    new_balance = user["balance"] - price
+    balance = float(user[0])
 
-    db.execute(
-        "UPDATE users SET balance = ? WHERE user_id = ?",
+    if balance < price:
+        return {"error": "Недостаточно средств"}
+
+    new_balance = balance - price
+
+    cursor.execute(
+        "UPDATE users SET balance=? WHERE user_id=?",
         (new_balance, telegram_id)
     )
 
-    db.execute(
+    conn.commit()
+    conn.close()
+
+    # отправка сообщения через Telegram
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={
+            "chat_id": telegram_id,
+            "text": f"🎁 Вы купили подарок!\n\n"
+                    f"ID: {item_id}\n"
+                    f"Название: {name}\n"
+                    f"Цена: {price} 💎"
+        }
+    )
+
+    cursor.execute(
         "DELETE FROM items WHERE id = ?",
         (item_id,)
     )
 
-    db.commit()
-
     return {
-        "success": True,
         "balance": new_balance
     }
 
@@ -187,7 +203,29 @@ def update_user_field(data: dict):
 
     return {"status": "ok"}
 
+@app.post("/admin/add_item")
+async def add_item(data: dict):
 
+    img = data.get("img")
+    gift_id = data.get("gift_id")
+    name = data.get("name")
+    price = data.get("price")
+
+    conn = sqlite3.connect("bot_data.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO items (id, name, price, img)
+        VALUES (?, ?, ?, ?)
+        """,
+        (gift_id, name, price, img)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "ok"}
 
 # сохранить платеж
 @app.post("/save_payment")
