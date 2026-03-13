@@ -34,9 +34,24 @@ def get_balance(user_id: int):
 
     return {"balance": user["balance"]}
 
+@app.get("/deals/{user_id}")
+def get_deals(user_id: int):
+
+    db = get_db()
+
+    user = db.execute(
+        "SELECT successful_deals FROM users WHERE user_id = ?",
+        (user_id,)
+    ).fetchone()
+
+    if not user:
+        return {"successful_deals": 0}
+
+    return {"successful_deals": user["successful_deals"]}
+
 @app.post("/buy")
 async def buy_item(data: dict):
-
+ 
     telegram_id = data.get("telegram_id")
     item_id = data.get("item_id")
 
