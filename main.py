@@ -18,8 +18,6 @@ def get_db():
     return conn
 
 
-
-# ПОКУПКА
 @app.post("/buy")
 def buy_item(data: dict):
 
@@ -65,6 +63,18 @@ def buy_item(data: dict):
         "balance": new_balance
     }
 
+@app.get("/items")
+def get_items():
+
+    db = get_db()
+
+    items = db.execute(
+        "SELECT * FROM items"
+    ).fetchall()
+
+    return [dict(item) for item in items]
+
+#Функции для бота
 @app.get("/user/{telegram_id}")
 def get_user(telegram_id: int):
 
@@ -96,14 +106,96 @@ def get_user(telegram_id: int):
     }
 
 
+# изменить баланс
+@app.post("/update_balance")
+def update_balance(data: dict):
 
-@app.get("/items")
-def get_items():
+    user_id = data["user_id"]
+    balance = data["balance"]
 
     db = get_db()
 
-    items = db.execute(
-        "SELECT * FROM items"
-    ).fetchall()
+    db.execute(
+        "UPDATE users SET balance = ? WHERE user_id = ?",
+        (balance, user_id)
+    )
 
-    return [dict(item) for item in items]
+    db.commit()
+
+    return {"status": "ok"}
+
+
+# изменить сделки
+@app.post("/update_deals")
+def update_deals(data: dict):
+
+    user_id = data["user_id"]
+    deals = data["deals"]
+
+    db = get_db()
+
+    db.execute(
+        "UPDATE users SET successful_deals = ? WHERE user_id = ?",
+        (deals, user_id)
+    )
+
+    db.commit()
+
+    return {"status": "ok"}
+
+
+# изменить любое поле пользователя
+@app.post("/update_user_field")
+def update_user_field(data: dict):
+
+    user_id = data["user_id"]
+    field = data["field"]
+    value = data["value"]
+
+    db = get_db()
+
+    db.execute(
+        f"UPDATE users SET {field} = ? WHERE user_id = ?",
+        (value, user_id)
+    )
+
+    db.commit()
+
+    return {"status": "ok"}
+
+
+# сохранить платеж
+@app.post("/save_payment")
+def save_payment(data: dict):
+
+    user_id = data["user_id"]
+    invoice_id = data["invoice_id"]
+    amount = data["amount"]
+    asset = data["asset"]
+
+    db = get_db()
+
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS payments (
+            user_id INTEGER,
+            invoice_id TEXT PRIMARY KEY,
+            amount REAL,
+            asset TEXT,
+            status TEXT DEFAULT 'pending'
+        )
+        """
+    )
+
+    db.execute(
+        """
+        INSERT OR REPLACE INTO payments
+        (user_id, invoice_id, amount, asset)
+        VALUES (?, ?, ?, ?)
+        """,
+        (user_id, invoice_id, amount, asset)
+    )
+
+    db.commit()
+
+    return {"status": "saved"}
