@@ -105,6 +105,16 @@ def get_user(telegram_id: int):
         "is_admin": row[7]
     }
 
+@app.get("/users")
+def get_all_users():
+
+    db = get_db()
+
+    users = db.execute(
+        "SELECT user_id, balance FROM users"
+    ).fetchall()
+
+    return [dict(user) for user in users]
 
 # изменить баланс
 @app.post("/update_balance")
