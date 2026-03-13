@@ -34,20 +34,39 @@ def get_balance(user_id: int):
 
     return {"balance": user["balance"]}
 
-@app.get("/deals/{user_id}")
-def get_deals(user_id: int):
+@app.get("/deals/{telegram_id}")
+async def get_deals(telegram_id: int):
 
-    db = get_db()
+    conn = sqlite3.connect("bot_data.db")
+    cursor = conn.cursor()
 
-    user = db.execute(
-        "SELECT successful_deals FROM users WHERE user_id = ?",
-        (user_id,)
-    ).fetchone()
+    cursor.execute("""
+        SELECT deal_id, amount, description, seller_id, buyer_id, status
+        FROM deals
+        WHERE seller_id=? OR buyer_id=?
+        ORDER BY rowid DESC
+        LIMIT 10
+    """, (telegram_id, telegram_id))
 
-    if not user:
-        return {"successful_deals": 0}
+    rows = cursor.fetchall()
 
-    return {"successful_deals": user["successful_deals"]}
+    conn.close()
+
+    deals = []
+
+    for row in rows:
+        deals.append({
+            "deal_id": row[0],
+            "amount": row[1],
+            "description": row[2],
+            "seller_id": row[3],
+            "buyer_id": row[4],
+            "status": row[5]
+        })
+
+    return {
+        "deals": deals
+    }
 
 @app.post("/buy")
 async def buy_item(data: dict):
