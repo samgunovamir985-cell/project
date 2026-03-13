@@ -47,6 +47,7 @@ async def buy_item(data: dict):
     item = cursor.fetchone()
 
     if not item:
+        conn.close()
         return {"error": "Предмет не найден"}
 
     name, price = item
@@ -55,24 +56,33 @@ async def buy_item(data: dict):
     user = cursor.fetchone()
 
     if not user:
+        conn.close()
         return {"error": "Пользователь не найден"}
 
     balance = float(user[0])
 
     if balance < price:
+        conn.close()
         return {"error": "Недостаточно средств"}
 
     new_balance = balance - price
 
+    # обновляем баланс
     cursor.execute(
         "UPDATE users SET balance=? WHERE user_id=?",
         (new_balance, telegram_id)
     )
 
+    # удаляем предмет из магазина
+    cursor.execute(
+        "DELETE FROM items WHERE id=?",
+        (item_id,)
+    )
+
     conn.commit()
     conn.close()
 
-    # отправка сообщения через Telegram
+    # отправка сообщения пользователю
     requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
         json={
@@ -82,11 +92,6 @@ async def buy_item(data: dict):
                     f"Название: {name}\n"
                     f"Цена: {price} 💎"
         }
-    )
-
-    cursor.execute(
-        "DELETE FROM items WHERE id = ?",
-        (item_id,)
     )
 
     return {
