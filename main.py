@@ -18,13 +18,13 @@ def get_db():
     return conn
 
 @app.get("/balance/{user_id}")
-def get_balance(telegram_id: int):
+def get_balance(user_id: int):
 
     db = get_db()
 
     user = db.execute(
         "SELECT balance FROM users WHERE user_id = ?",
-        (telegram_id,)
+        (user_id,)
     ).fetchone()
 
     if not user:
